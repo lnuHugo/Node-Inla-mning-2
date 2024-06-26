@@ -1,6 +1,7 @@
 import { generateHash } from "../utilities/crypto-lib.mjs";
 import Block from "./Block.mjs";
 import Transaction from "./Transaction.mjs";
+import { MINING_REWARD, REWARD_ADDRESS } from "../config/settings.mjs";
 
 export default class Blockchain {
   constructor() {
@@ -9,11 +10,11 @@ export default class Blockchain {
   }
 
   // Instance method...
-  addBlock() {
+  addBlock({ data }) {
     const newBlock = Block.createBlock({
       lastBlock: this.chain.at(-1),
-      /*  data: data, */
-      data: this.pendingTransactions,
+      data: data,
+      /* data: this.pendingTransactions, */
     });
 
     this.pendingTransactions = [];
@@ -24,7 +25,7 @@ export default class Blockchain {
   addTransaction(amount, sender, recipient) {
     const transaction = new Transaction(amount, sender, recipient);
     this.pendingTransactions.push(transaction);
-    return transaction
+    return transaction;
   }
 
   /* 
@@ -62,6 +63,37 @@ export default class Blockchain {
         difficulty
       );
       if (hash !== correctHash) return false;
+    }
+
+    return true;
+  }
+
+  validateTransactionData({ chain }) {
+    for (let i = 1; i < chain.length; i++) {
+      const block = chain[i];
+      const transactionSet = new Set();
+      let counter = 0;
+
+      for (let transaction of block.data) {
+        if (transaction.inputMap.address === REWARD_ADDRESS.address) {
+          counter++;
+
+          if (counter > 1) return false;
+
+          if (Object.values(transaction.outputMap)[0] !== MINING_REWARD)
+            return false;
+        } else {
+          if (!Transaction.validate(transaction)) {
+            return false;
+          }
+
+          if (transactionSet.has(transaction)) {
+            return false;
+          } else {
+            transactionSet.add(transaction);
+          }
+        }
+      }
     }
 
     return true;
