@@ -16,9 +16,7 @@ import helmet from "helmet";
 import xss from "xss-clean";
 import rateLimit from "express-rate-limit";
 import hpp from "hpp";
-import cors from "cors";
 import authRouter from "./routes/auth-routes.mjs";
-import coursesRouter from "./routes/courses-routes.mjs";
 import usersRouter from "./routes/user-routes.mjs";
 
 import path from "path";
@@ -37,6 +35,7 @@ const credentials = {
 };
 
 export const blockchain = new Blockchain();
+blockchain.loadBlockchain();
 export const pubnubServer = new PubNubServer({
   blockchain: blockchain,
   credentials: credentials,
@@ -57,11 +56,15 @@ setTimeout(() => {
   pubnubServer.broadcast();
 }, 1000);
 
+const limit = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 100,
+});
+
 app.use("/api/v1/blockchain", blockchainRouter);
 app.use("/api/v1/transactions", transactionRouter);
 app.use("/api/v1/block", blockRouter);
 app.use("/api/v1/auth", authRouter);
-app.use("/api/v1/courses", coursesRouter);
 app.use("/api/v1/users", usersRouter);
 
 app.use(express.static(path.join(__appdir, "public")));
@@ -69,19 +72,11 @@ app.use(mongoSanitize());
 app.use(helmet());
 app.use(xss());
 app.use(limit);
-app.use(cors());
 app.use(hpp());
-
 app.use(errorHandler);
-
-const limit = rateLimit({
-  windowMs: 5 * 60 * 1000,
-  limit: 100,
-});
 
 process.on("unhandledRejection", (err, promise) => {
   console.log(`FEL: ${err.message}`.red);
-  server.close(() => process.exit(1));
 });
 
 const PORT_DEFAULT = 4001;

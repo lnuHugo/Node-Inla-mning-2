@@ -2,6 +2,7 @@ import { generateHash } from "../utilities/crypto-lib.mjs";
 import Block from "./Block.mjs";
 import Transaction from "./Transaction.mjs";
 import { MINING_REWARD, REWARD_ADDRESS } from "../config/settings.mjs";
+import BlockchainModel from "./BlockchainModel.mjs";
 
 export default class Blockchain {
   constructor() {
@@ -10,7 +11,7 @@ export default class Blockchain {
   }
 
   // Instance method...
-  addBlock({ data }) {
+  async addBlock({ data }) {
     const newBlock = Block.createBlock({
       lastBlock: this.chain.at(-1),
       data: data,
@@ -19,6 +20,9 @@ export default class Blockchain {
 
     this.pendingTransactions = [];
     this.chain.push(newBlock);
+
+    await this.saveBlockchain();
+
     return newBlock;
   }
 
@@ -32,6 +36,25 @@ export default class Blockchain {
   getLastBlock() {
     return this.chain.at(-1);
   } */
+
+  async saveBlockchain() {
+    await BlockchainModel.replaceOne(
+      {},
+      {
+        chain: this.chain,
+        pendingTransactions: this.pendingTransactions,
+      },
+      { upsert: true }
+    );
+  }
+
+  async loadBlockchain() {
+    const blockchainData = await BlockchainModel.findOne({});
+    if (blockchainData) {
+      this.chain = blockchainData.chain;
+      this.pendingTransactions = blockchainData.pendingTransactions;
+    }
+  }
 
   substituteChain(chain) {
     if (chain.length <= this.chain.length) return;
